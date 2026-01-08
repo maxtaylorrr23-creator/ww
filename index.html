@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>myVicRoads</title>
+    <style>
+        :root {
+            --vic-navy: #1d2b3a;
+            --vic-red: #e1251b;
+            --vic-green: #008751;
+            --vic-bg: #f8fafb;
+            --vic-mint: #C3E1BB;
+            --text-dark: #1c1c1e;
+            --text-light: #6e6e73;
+            --pin-bg: #f2f4f7;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; touch-action: manipulation; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; background: var(--vic-bg); color: var(--text-dark); height: 100vh; overflow: hidden; }
+
+        /* PASSCODE SCREEN */
+        #screen-pin { position: fixed; inset: 0; background: white; z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .pin-lock-icon { width: 60px; height: 60px; background: var(--vic-navy); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
+        .pin-header { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+        .pin-dots { display: flex; gap: 15px; margin-bottom: 50px; }
+        .pin-dot { width: 45px; height: 55px; border: 1.5px solid #d1d1d6; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+        .pin-dot.filled { border-color: var(--vic-navy); }
+        .pin-keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; width: 85%; max-width: 320px; }
+        .key { height: 65px; background: var(--pin-bg); border: none; border-radius: 12px; font-size: 24px; font-weight: 600; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+
+        /* SCREENS */
+        .screen { display: none; height: 100vh; width: 100vw; flex-direction: column; overflow-y: auto; padding-bottom: 110px; }
+        .screen.active { display: flex; }
+
+        /* HOME SCREEN */
+        .header-main { padding: 55px 20px 10px; font-size: 34px; font-weight: 700; }
+        .stat-card { background: white; border-radius: 12px; padding: 22px; margin: 10px 16px; display: flex; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.03); border: 1px solid #efefef; }
+        .licence-card { background: linear-gradient(135deg, #2b3a4a, #111a24); color: white; border-radius: 16px; padding: 25px; margin: 10px 16px; position: relative; }
+
+        /* LICENCE PAGE - UPDATED DIMENSIONS */
+        .lic-nav { background: white; padding: 15px; display: flex; align-items: center; border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 10; }
+        .refresh-bar { padding: 12px 20px; font-size: 12px; color: var(--text-light); background: white; }
+        .banner-red { background: var(--vic-red); color: white; padding: 18px 20px; font-weight: 800; font-size: 14px; }
+        
+        /* LONGER MINT BOX */
+        .mint-box { 
+            background: var(--vic-mint); 
+            padding: 20px; 
+            display: flex; 
+            gap: 15px; 
+            align-items: stretch;
+            min-height: 200px; /* Increased height */
+        }
+
+        /* PHOTO & QR MATCHING SIZES */
+        #profile-img { 
+            width: 150px; 
+            height: 180px; 
+            border-radius: 10px; 
+            object-fit: cover; 
+            background: white; 
+            border: 1px solid rgba(0,0,0,0.1); 
+        }
+
+        .qr-card { 
+            flex: 1; 
+            height: 180px; /* Matches photo height */
+            background: white; 
+            border-radius: 12px; 
+            padding: 12px; 
+            text-align: center; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            align-items: center;
+        }
+
+        .btn-reveal { 
+            background: var(--vic-navy); 
+            color: white; 
+            border: none; 
+            width: 90%;
+            padding: 12px 5px; 
+            border-radius: 25px; 
+            font-weight: 700; 
+            font-size: 11px; 
+            margin-top: 5px; 
+        }
+
+        /* DETAILS & SIGNATURE */
+        .details-pane { background: white; padding: 20px; }
+        .grid-row { display: flex; margin-bottom: 22px; }
+        .grid-col { flex: 1; }
+        .label { font-size: 11px; color: var(--text-light); margin-bottom: 5px; text-transform: uppercase; font-weight: 700; }
+        .value { font-size: 16px; font-weight: 600; }
+        .section-break { background: #f2f2f7; padding: 12px 20px; font-weight: 700; font-size: 13px; color: var(--text-light); }
+        #signature-img { height: 60px; max-width: 200px; object-fit: contain; filter: grayscale(1); }
+
+        /* NAVIGATION BAR */
+        .nav-bar { position: fixed; bottom: 0; width: 100%; height: 95px; background: white; border-top: 1px solid #ddd; display: flex; justify-content: space-around; padding-top: 12px; z-index: 999; }
+        .nav-btn { display: flex; flex-direction: column; align-items: center; width: 20%; color: #8e8e93; font-size: 11px; font-weight: 500; cursor: pointer; }
+        .nav-icon { width: 26px; height: 26px; margin-bottom: 4px; fill: none; stroke: currentColor; stroke-width: 2; }
+        .nav-btn.active-home { color: var(--vic-green); }
+        .home-pill { background: #f0f9f4; border-radius: 20px; padding: 4px 14px; margin-bottom: 4px; display: none; }
+        .active-home .home-pill { display: block; }
+
+        /* ADMIN PANEL */
+        #admin-panel { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 20000; display: none; flex-direction: column; padding: 30px 20px; overflow-y: auto; color: white; }
+        #admin-panel input { width: 100%; padding: 14px; margin: 8px 0; border-radius: 10px; border: none; font-size: 16px; }
+        .admin-btn { background: var(--vic-green); color: white; padding: 16px; border: none; border-radius: 12px; font-weight: 700; margin-top: 15px; width: 100%; }
+    </style>
+</head>
+<body>
+
+    <div id="screen-pin">
+        <div class="pin-lock-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+        </div>
+        <div class="pin-header">Enter PIN</div>
+        <div class="pin-dots" id="pin-dots-container">
+            <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+        </div>
+        <div class="pin-keypad">
+            <div class="key" onclick="handlePinInput('1')">1</div><div class="key" onclick="handlePinInput('2')">2</div><div class="key" onclick="handlePinInput('3')">3</div>
+            <div class="key" onclick="handlePinInput('4')">4</div><div class="key" onclick="handlePinInput('5')">5</div><div class="key" onclick="handlePinInput('6')">6</div>
+            <div class="key" onclick="handlePinInput('7')">7</div><div class="key" onclick="handlePinInput('8')">8</div><div class="key" onclick="handlePinInput('9')">9</div>
+            <div style="background:transparent"></div><div class="key" onclick="handlePinInput('0')">0</div><div class="key" onclick="handlePinBackspace()">⌫</div>
+        </div>
+    </div>
+
+    <div id="admin-panel">
+        <h2>Edit Details</h2>
+        <input type="text" id="edit-name" placeholder="Full Name">
+        <input type="text" id="edit-num" placeholder="Permit Number">
+        <input type="text" id="edit-exp" placeholder="Expiry Date">
+        <input type="text" id="edit-dob" placeholder="Date of Birth">
+        <input type="text" id="edit-type" placeholder="Permit Type">
+        <input type="text" id="edit-addr" placeholder="Address">
+        <p>Profile Photo:</p><input type="file" id="edit-photo" accept="image/*">
+        <p>Signature Photo:</p><input type="file" id="edit-sig" accept="image/*">
+        <button class="admin-btn" onclick="applyChanges()">Save</button>
+        <button class="admin-btn" style="background:#444" onclick="toggleAdmin()">Cancel</button>
+    </div>
+
+    <div id="screen-home" class="screen">
+        <header class="header-main" id="admin-trigger">Hi <span id="display-first-name">Max</span></header>
+        <div class="stat-card">Demerit points balance <span style="margin-left:auto; font-weight:700">0</span></div>
+        <div class="stat-card">Registered vehicles <span style="margin-left:auto; font-weight:700">1</span></div>
+        <div class="licence-card" onclick="navTo('licence')">
+            <div style="font-size: 20px; font-weight: 700;">My licence</div>
+            <div style="font-size: 14px; opacity: 0.8;">Tap to view licence</div>
+        </div>
+    </div>
+
+    <div id="screen-licence" class="screen">
+        <div class="lic-nav" onclick="navTo('home')">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
+            <span style="margin-left: 10px; font-weight: 700;">View details</span>
+        </div>
+        <div class="refresh-bar">Last refreshed: <span id="refresh-time"></span></div>
+        <div class="banner-red">PROBATIONARY LICENCE<br>Victoria Australia</div>
+        
+        <div class="mint-box">
+            <img id="profile-img" src="">
+            <div class="qr-card" id="qr-area">
+                <p style="font-size: 10px; margin-bottom: 8px;">Presenting a QR code allows your information to be shared.</p>
+                <button class="btn-reveal" onclick="revealQR()">Reveal QR code</button>
+            </div>
+        </div>
+
+        <div class="details-pane">
+            <h2 id="display-full-name" style="margin: 0 0 25px;">MAX T CAMERON</h2>
+            <div class="grid-row">
+                <div class="grid-col"><div class="label">Permit number</div><div class="value" id="val-num">060672930</div></div>
+                <div class="grid-col"><div class="label">Expiry</div><div class="value" id="val-exp">30 Dec 2035</div></div>
+            </div>
+            <div class="grid-row">
+                <div class="grid-col"><div class="label">Permit type</div><div class="value" id="val-type">Car <span style="background:var(--vic-red); color:white; padding:1px 5px; border-radius:3px;">P</span></div></div>
+                <div class="grid-col"><div class="label">Date of birth</div><div class="value" id="val-dob">23 Feb 2007</div></div>
+            </div>
+            <div class="label">Address</div>
+            <div class="value" id="val-addr">46A ELWOOD ST<br>BRIGHTON VIC 3186</div>
+        </div>
+        <div class="section-break">Signature</div>
+        <div class="details-pane"><img id="signature-img" src=""></div>
+        <div class="section-break">Other details</div>
+        <div class="details-pane" style="text-align:center;">
+            <div class="label" style="text-align:left; margin-bottom:10px;">Victoria Police barcode</div>
+            <div style="width:100%; height:60px; background:repeating-linear-gradient(90deg, #000, #000 2px, #fff 2px, #fff 4px); opacity:0.8;"></div>
+        </div>
+    </div>
+
+    <nav class="nav-bar">
+        <div class="nav-btn" id="btn-home" onclick="navTo('home')">
+            <div class="home-pill"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg></div>
+            <svg id="home-icon-static" class="nav-icon" viewBox="0 0 24 24" style="display:none;"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
+            <span>Home</span>
+        </div>
+        <div class="nav-btn" id="btn-licence" onclick="navTo('licence')">
+            <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"></rect><line x1="7" y1="8" x2="17" y2="8"></line><line x1="7" y1="12" x2="17" y2="12"></line></svg>
+            <span>Licence</span>
+        </div>
+    </nav>
+
+    <script>
+        let pin = "";
+        window.onload = () => { loadSavedData(); navTo('home'); };
+
+        function handlePinInput(num) {
+            if (pin.length < 4) {
+                pin += num;
+                const dots = document.querySelectorAll('.pin-dot');
+                dots[pin.length-1].classList.add('filled');
+                dots[pin.length-1].innerText = "●";
+                if (pin.length === 4) setTimeout(() => document.getElementById('screen-pin').style.display = 'none', 200);
+            }
+        }
+
+        function handlePinBackspace() {
+            if (pin.length > 0) {
+                const dots = document.querySelectorAll('.pin-dot');
+                dots[pin.length-1].classList.remove('filled');
+                dots[pin.length-1].innerText = "";
+                pin = pin.slice(0, -1);
+            }
+        }
+
+        function navTo(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById('screen-' + id).classList.add('active');
+            const hb = document.getElementById('btn-home');
+            const hi = document.getElementById('home-icon-static');
+            if(id === 'home') { hb.classList.add('active-home'); hi.style.display = 'none'; } 
+            else { hb.classList.remove('active-home'); hi.style.display = 'block'; updateTime(); }
+        }
+
+        function loadSavedData() {
+            const data = JSON.parse(localStorage.getItem('vicWalletData') || '{}');
+            if(data.name) {
+                document.getElementById('display-full-name').innerText = data.name.toUpperCase();
+                document.getElementById('display-first-name').innerText = data.name.split(' ')[0];
+            }
+            if(data.num) document.getElementById('val-num').innerText = data.num;
+            if(data.exp) document.getElementById('val-exp').innerText = data.exp;
+            if(data.dob) document.getElementById('val-dob').innerText = data.dob;
+            if(data.addr) document.getElementById('val-addr').innerText = data.addr;
+            if(data.photo) document.getElementById('profile-img').src = data.photo;
+            if(data.sig) document.getElementById('signature-img').src = data.sig;
+        }
+
+        let tapCount = 0;
+        document.getElementById('admin-trigger').onclick = () => {
+            tapCount++; if(tapCount >= 5) { toggleAdmin(); tapCount = 0; }
+            setTimeout(() => tapCount = 0, 3000);
+        };
+
+        function toggleAdmin() {
+            const p = document.getElementById('admin-panel');
+            p.style.display = (p.style.display === 'flex') ? 'none' : 'flex';
+        }
+
+        async function applyChanges() {
+            const data = {
+                name: document.getElementById('edit-name').value || document.getElementById('display-full-name').innerText,
+                num: document.getElementById('edit-num').value || document.getElementById('val-num').innerText,
+                exp: document.getElementById('edit-exp').value || document.getElementById('val-exp').innerText,
+                dob: document.getElementById('edit-dob').value || document.getElementById('val-dob').innerText,
+                addr: document.getElementById('edit-addr').value || document.getElementById('val-addr').innerText,
+                photo: await toBase64(document.getElementById('edit-photo').files[0]) || document.getElementById('profile-img').src,
+                sig: await toBase64(document.getElementById('edit-sig').files[0]) || document.getElementById('signature-img').src
+            };
+            localStorage.setItem('vicWalletData', JSON.stringify(data));
+            loadSavedData(); toggleAdmin();
+        }
+
+        const toBase64 = file => !file ? null : new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+        });
+
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('refresh-time').innerText = now.toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+        }
+
+        function revealQR() {
+            document.getElementById('qr-area').innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=VERIFIED" style="width:130px; height:130px;">`;
+        }
+    </script>
+</body>
+</html>
